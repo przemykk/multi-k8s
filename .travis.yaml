@@ -1,0 +1,36 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t przemyyk/multi-docker-test -f ./client/Dockerfile.dev ./client
+
+script:
+  - docker run -e CI=true przemyyk/multi-docker-test npm test
+
+after_success:
+  - docker build -t przemyyk/multi-client ./client
+  - docker build -t przemyyk/multi-nginx ./nginx
+  - docker build -t przemyyk/multi-server ./server
+  - docker build -t przemyyk/multi-worker ./worker
+
+#Push images to Docker HUB
+  - echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+
+  - docker push przemyyk/multi-client
+  - docker push przemyyk/multi-server
+  - docker push przemyyk/multi-nginx
+  - docker push przemyyk/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: "us-east-2"
+  app: "multi-docker"
+  env: "MultiDocker-env"
+  bucket_name: "elasticbeanstalk-us-east-2-895123306430"
+  bucket_path: "multi-docker"
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: 
+    secure: $AWS_SECRET_KEY
