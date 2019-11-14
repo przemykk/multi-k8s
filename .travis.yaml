@@ -1,36 +1,28 @@
 sudo: required
 services:
   - docker
-
+env:
+  global:
+    - SHA=$(git rev-parse HEAD)
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
 before_install:
-  - docker build -t przemyyk/multi-docker-test -f ./client/Dockerfile.dev ./client
+  - openssl aes-256-cbc -K $encrypted_0c35eebf403c_key -iv $encrypted_0c35eebf403c_iv -in multi-k8s-259016-12bd3740d089.json.enc -out multi-k8s-259016-12bd3740d089.json -d
+  - curl https://sdk.cloud.google.com | bash > /dev/null;
+  - source $HOME/google-cloud-sdk/path.bash.inc
+  - gcloud components update kubectl
+  - gcloud auth activate-service-account --key-file multi-k8s-259016-12bd3740d089.json
+  - gcloud config set project multi-k8s-259016
+  - gcloud config set compute/zone europe-west3-a
+  - gcloud container clusters get-credentials multi-cluster
+  - echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+  - docker build -t przemyyk/react-test -f ./client/Dockerfile.dev ./client
 
 script:
-  - docker run -e CI=true przemyyk/multi-docker-test npm test
-
-after_success:
-  - docker build -t przemyyk/multi-client ./client
-  - docker build -t przemyyk/multi-nginx ./nginx
-  - docker build -t przemyyk/multi-server ./server
-  - docker build -t przemyyk/multi-worker ./worker
-
-#Push images to Docker HUB
-  - echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-
-  - docker push przemyyk/multi-client
-  - docker push przemyyk/multi-server
-  - docker push przemyyk/multi-nginx
-  - docker push przemyyk/multi-worker
+  - docker run -e CI=true przemyyk/react-test npm test
 
 deploy:
-  provider: elasticbeanstalk
-  region: "us-east-2"
-  app: "multi-docker"
-  env: "MultiDocker-env"
-  bucket_name: "elasticbeanstalk-us-east-2-895123306430"
-  bucket_path: "multi-docker"
+  provider: script
+  script: bash ./deploy.sh
   on:
     branch: master
-  access_key_id: $AWS_ACCESS_KEY
-  secret_access_key: 
-    secure: $AWS_SECRET_KEY
+
