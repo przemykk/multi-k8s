@@ -21,6 +21,7 @@ before_install:
 script:
   - docker run -e CI=true przemyyk/react-test npm test
 
+
 deploy:
   provider: script
   script: bash ./deploy.sh
